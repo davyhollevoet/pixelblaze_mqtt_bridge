@@ -98,6 +98,26 @@ def set_active_program(p):
     })
 
 
+EXT_COLOR_PROG = 'External color'
+
+
+def set_hs(p):
+    global last_program
+    if last_program != EXT_COLOR_PROG:
+        set_active_program(EXT_COLOR_PROG)
+
+    try:
+        h, s = map(lambda x: float(x), p.split(','))
+        ws_send({
+            "setVars": {
+                "ext_h": h / 360.0,
+                "ext_s": s / 100.0
+            }
+        })
+    except ValueError:
+        logging.error("Could not parse payload")
+
+
 # The callback for when the client receives a CONNACK response from the server.
 def on_mqtt_connect(client, userdata, flags, rc):
     logging.info('Connected to MQTT: %s', str(rc))
@@ -116,6 +136,8 @@ def on_mqtt_message(client, userdata, msg):
             set_switch(msg.payload.decode("utf8") == "ON")
         elif prop == 'active_program':
             set_active_program(msg.payload.decode("utf-8"))
+        elif prop == 'hs':
+            set_hs(msg.payload.decode("utf-8"))
 
         else:
             logging.warning('Got unhandled property message: "%s"', prop)

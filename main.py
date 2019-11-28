@@ -1,9 +1,10 @@
 import json
-import time
-import websocket
-import paho.mqtt.client as mqtt
 import logging
 import sys
+import time
+
+import paho.mqtt.client as mqtt
+import websocket
 import yaml
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -33,8 +34,6 @@ def on_message(ws, message):
             programs.clear()
         parse_programs_frame(message[2:])
         if message[1] & 0x04 == 0x04:
-            for name in programs:
-                print("      - {}".format(name))
             save_programs()
     else:
         logging.info('Got WS message "%s"', message)
@@ -49,16 +48,21 @@ def on_close(ws):
     current_ws = None
 
 
+def ws_send(p):
+    if current_ws is not None:
+        logging.debug("Sending %s", json.dumps(p))
+        current_ws.send(json.dumps(p))
+
+
 def on_open(ws):
     global current_ws
 
     logging.info("Websocket open")
     current_ws = ws
 
-    current_ws.send(json.dumps(
-        {
-            "listPrograms": True
-        }))
+    ws_send({
+        "listPrograms": True
+    })
 
     if last_brightness is not None:
         set_brightness(last_brightness)
@@ -69,31 +73,29 @@ def set_brightness(b):
 
     last_brightness = b
 
-    if current_ws is not None:
-        current_ws.send(json.dumps({
-            "brightness": b,
-            "save": False
-        }))
+    ws_send({
+        "brightness": b,
+        "save": False
+    })
 
 
 def set_switch(s):
     global last_brightness
 
-    if current_ws is not None:
-        current_ws.send(json.dumps({
-            "brightness": last_brightness if s else 0,
-            "save": False
-        }))
+    ws_send({
+        "brightness": last_brightness if s else 0,
+        "save": False
+    })
 
 
 def set_active_program(p):
-    if current_ws is not None:
-        program_id = programs.get(p, p)
+    global last_program
 
-        current_ws.send(json.dumps({
-            "activeProgramId": program_id,
-            "save": False
-        }))
+    last_program = programs.get(p, p)
+    ws_send({
+        "activeProgramId": last_program,
+        "save": False
+    })
 
 
 # The callback for when the client receives a CONNACK response from the server.
@@ -123,6 +125,7 @@ def on_mqtt_message(client, userdata, msg):
 
 current_ws = None
 last_brightness = None
+last_program = None
 
 if __name__ == "__main__":
     mqtt_client = mqtt.Client()

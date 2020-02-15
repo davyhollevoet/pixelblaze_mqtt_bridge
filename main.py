@@ -46,6 +46,7 @@ def on_error(ws, error):
 def on_close(ws):
     global current_ws
     current_ws = None
+    set_available(False)
 
 
 def ws_send(p):
@@ -59,6 +60,8 @@ def on_open(ws):
 
     logging.info("Websocket open")
     current_ws = ws
+
+    set_available(True)
 
     ws_send({
         "listPrograms": True
@@ -117,8 +120,16 @@ def set_hs(p):
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_mqtt_connect(client, userdata, flags, rc):
+    global current_mqtt
     logging.info('Connected to MQTT: %s', str(rc))
+    current_mqtt = client
     client.subscribe(settings['mqtt_topic_prefix'] + '#')
+
+
+def on_mqtt_disconnect(client, userdata, rc):
+    global current_mqtt
+    current_mqtt = None
+    logging.info('Disconnected from MQTT: %s', str(rc))
 
 
 def on_mqtt_message(client, userdata, msg):
@@ -135,14 +146,25 @@ def on_mqtt_message(client, userdata, msg):
             set_active_program(msg.payload.decode("utf-8"))
         elif prop == 'hs':
             set_hs(msg.payload.decode("utf-8"))
-
+        elif prop == 'available':
+            pass
         else:
             logging.warning('Got unhandled property message: "%s"', prop)
     else:
         logging.warning('Got unhandled topic message: "%s"', msg.topic)
 
 
+def set_available(v):
+    if current_mqtt is not None:
+        current_mqtt.publish(
+            "{}available".format(settings['mqtt_topic_prefix']),
+            payload="online" if v else "offline",
+            retain=True
+        )
+
+
 current_ws = None
+current_mqtt = None
 last_brightness = None
 last_program = None
 
@@ -150,6 +172,7 @@ if __name__ == "__main__":
     mqtt_client = mqtt.Client()
     mqtt_client.on_connect = on_mqtt_connect
     mqtt_client.on_message = on_mqtt_message
+    mqtt_client.on_disconnect = on_mqtt_disconnect
 
     mqtt_client.username_pw_set(settings['mqtt_username'], settings['mqtt_password'])
     mqtt_client.tls_set('/etc/ssl/certs/DST_Root_CA_X3.pem')

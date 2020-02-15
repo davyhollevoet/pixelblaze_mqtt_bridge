@@ -1,9 +1,9 @@
 import json
-import logging
 import sys
-import time
 
+import logging
 import paho.mqtt.client as mqtt
+import time
 import websocket
 import yaml
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     mqtt_client.username_pw_set(settings['mqtt_username'], settings['mqtt_password'])
     mqtt_client.tls_set('/etc/ssl/certs/DST_Root_CA_X3.pem')
 
-    mqtt_client.connect(settings['mqtt_server'], 8883, 60)
+    mqtt_client.connect(settings['mqtt_server'], settings.get('mqtt_port', 8883), 60)
 
     mqtt_client.loop_start()
 

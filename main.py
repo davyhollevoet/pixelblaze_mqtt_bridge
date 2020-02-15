@@ -98,13 +98,10 @@ def set_active_program(p):
     })
 
 
-EXT_COLOR_PROG = 'External color'
-
-
 def set_hs(p):
     global last_program
-    if last_program != EXT_COLOR_PROG:
-        set_active_program(EXT_COLOR_PROG)
+    if last_program != settings["ext_color_prog"]:
+        set_active_program(settings["ext_color_prog"])
 
     try:
         h, s = map(lambda x: float(x), p.split(','))
